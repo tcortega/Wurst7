@@ -57,6 +57,11 @@ public class EntityTypeListSetting extends Setting
 		return Collections.unmodifiableList(entityTypes);
 	}
 	
+	public int indexOf(String name)
+	{
+		return Collections.binarySearch(entityTypeNames, name);
+	}
+	
 	public int size()
 	{
 		return entityTypeNames.size();
@@ -76,6 +81,11 @@ public class EntityTypeListSetting extends Setting
 		Collections.sort(entityTypeNames);
 		
 		WurstClient.INSTANCE.saveSettings();
+	}
+	
+	public void remove(String name)
+	{
+		remove(indexOf(name));
 	}
 	
 	public void remove(int index)

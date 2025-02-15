@@ -40,7 +40,6 @@ import net.wurstclient.events.UpdateListener;
 import net.wurstclient.hack.Hack;
 import net.wurstclient.settings.EspBoxSizeSetting;
 import net.wurstclient.settings.EspStyleSetting;
-import net.wurstclient.settings.filters.*;
 import net.wurstclient.util.EntityUtils;
 import net.wurstclient.util.RegionPos;
 import net.wurstclient.util.RenderUtils;
@@ -59,30 +58,6 @@ public final class MobEspHack extends Hack implements UpdateListener,
 	private final EntityTypeListSetting entityTypes = new EntityTypeListSetting(
 		"Entity Types", "The entity types to show.", "minecraft:enderman");
 	
-	// private final EntityFilterList entityFilters =
-	// new EntityFilterList(FilterHostileSetting.genericVision(false),
-	// FilterNeutralSetting
-	// .genericVision(AttackDetectingEntityFilter.Mode.OFF),
-	// FilterPassiveSetting.genericVision(false),
-	// FilterPassiveWaterSetting.genericVision(false),
-	// FilterBatsSetting.genericVision(false),
-	// FilterSlimesSetting.genericVision(false),
-	// FilterPetsSetting.genericVision(false),
-	// FilterVillagersSetting.genericVision(false),
-	// FilterZombieVillagersSetting.genericVision(false),
-	// FilterGolemsSetting.genericVision(false),
-	// FilterPiglinsSetting
-	// .genericVision(AttackDetectingEntityFilter.Mode.OFF),
-	// FilterZombiePiglinsSetting
-	// .genericVision(AttackDetectingEntityFilter.Mode.OFF),
-	// FilterEndermenSetting
-	// .genericVision(AttackDetectingEntityFilter.Mode.OFF),
-	// FilterShulkersSetting.genericVision(false),
-	// FilterAllaysSetting.genericVision(false),
-	// FilterInvisibleSetting.genericVision(false),
-	// FilterNamedSetting.genericVision(false),
-	// FilterArmorStandsSetting.genericVision(true));
-	
 	private final ArrayList<LivingEntity> mobs = new ArrayList<>();
 	private VertexBuffer mobBox;
 	
@@ -93,7 +68,11 @@ public final class MobEspHack extends Hack implements UpdateListener,
 		addSetting(style);
 		addSetting(boxSize);
 		addSetting(entityTypes);
-		// entityFilters.forEach(this::addSetting);
+	}
+	
+	public EntityTypeListSetting getEntitySettings()
+	{
+		return entityTypes;
 	}
 	
 	@Override

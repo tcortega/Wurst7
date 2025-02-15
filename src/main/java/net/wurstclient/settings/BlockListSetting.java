@@ -100,6 +100,11 @@ public class BlockListSetting extends Setting
 		WurstClient.INSTANCE.saveSettings();
 	}
 	
+	public void remove(String name)
+	{
+		remove(indexOf(name));
+	}
+	
 	public void remove(int index)
 	{
 		if(index < 0 || index >= blockNames.size())

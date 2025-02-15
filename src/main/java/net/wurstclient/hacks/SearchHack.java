@@ -87,6 +87,11 @@ public final class SearchHack extends Hack
 		addSetting(limit);
 	}
 	
+	public BlockListSetting getBlockListSetting()
+	{
+		return blockList;
+	}
+	
 	@Override
 	public String getRenderName()
 	{
