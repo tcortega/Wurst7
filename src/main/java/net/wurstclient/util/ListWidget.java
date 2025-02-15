@@ -373,7 +373,7 @@ public abstract class ListWidget extends AbstractParentElement
 		return 220;
 	}
 	
-	protected void renderList(DrawContext context, int i, int j, int k, int l,
+	protected void renderList(DrawContext context, int i, int j, int mouseX, int mouseY,
 		float f)
 	{
 		int m = getItemCount();
@@ -413,7 +413,7 @@ public abstract class ListWidget extends AbstractParentElement
 			}
 			
 			RenderSystem.setShaderColor(1, 1, 1, 1);
-			renderItem(context, n, i, o, p, k, l, f);
+			renderItem(context, n, i, o, p, mouseX, mouseY, f);
 		}
 		
 	}
