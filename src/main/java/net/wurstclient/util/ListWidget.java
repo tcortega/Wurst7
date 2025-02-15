@@ -373,8 +373,8 @@ public abstract class ListWidget extends AbstractParentElement
 		return 220;
 	}
 	
-	protected void renderList(DrawContext context, int i, int j, int mouseX, int mouseY,
-		float f)
+	protected void renderList(DrawContext context, int i, int j, int mouseX,
+		int mouseY, float f)
 	{
 		int m = getItemCount();
 		Tessellator tessellator = Tessellator.getInstance();

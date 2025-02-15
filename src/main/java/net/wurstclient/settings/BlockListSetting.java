@@ -14,7 +14,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -33,153 +32,175 @@ import net.wurstclient.util.json.JsonException;
 import net.wurstclient.util.json.JsonUtils;
 import net.wurstclient.util.text.WText;
 
-public class BlockListSetting extends Setting {
-    private final ArrayList<String> blockNames = new ArrayList<>();
-    private final String[] defaultNames;
-
-    public BlockListSetting(String name, WText description, String... blocks) {
-        super(name, description);
-
-        Arrays.stream(blocks).parallel()
-                .map(s -> Registries.BLOCK.get(new Identifier(s)))
-                .filter(Objects::nonNull).map(BlockUtils::getName).distinct()
-                .sorted().forEachOrdered(blockNames::add);
-        defaultNames = blockNames.toArray(new String[0]);
-    }
-
-    public BlockListSetting(String name, String descriptionKey,
-                            String... blocks) {
-        this(name, WText.translated(descriptionKey), blocks);
-    }
-
-    public List<String> getBlockNames() {
-        return Collections.unmodifiableList(blockNames);
-    }
-
-    public String getSignature() {
-        return String.join(",", blockNames);
-    }
-
-    public int indexOf(String name) {
-        return Collections.binarySearch(blockNames, name);
-    }
-
-    public int indexOf(Block block) {
-        return indexOf(BlockUtils.getName(block));
-    }
-
-    public boolean contains(String name) {
-        return indexOf(name) >= 0;
-    }
-
-    public boolean contains(Block block) {
-        return indexOf(block) >= 0;
-    }
-
-    public int size() {
-        return blockNames.size();
-    }
-
-    public void add(Block block) {
-        String name = BlockUtils.getName(block);
-        if (Collections.binarySearch(blockNames, name) >= 0)
-            return;
-
-        blockNames.add(name);
-        Collections.sort(blockNames);
-        WurstClient.INSTANCE.saveSettings();
-    }
-
-    public void remove(int index) {
-        if (index < 0 || index >= blockNames.size())
-            return;
-
-        blockNames.remove(index);
-        WurstClient.INSTANCE.saveSettings();
-    }
-
-    public void resetToDefaults() {
-        blockNames.clear();
-        blockNames.addAll(Arrays.asList(defaultNames));
-        WurstClient.INSTANCE.saveSettings();
-    }
-
-    public List<Block> getBlocks() {
-        return blockNames.stream().map(BlockUtils::getBlockFromName)
-                .filter(Objects::nonNull).toList();
-    }
-
-    @Override
-    public Component getComponent() {
-        return new BlockListEditButton(this);
-    }
-
-    @Override
-    public void fromJson(JsonElement json) {
-        try {
-            blockNames.clear();
-
-            // if string "default", load default blocks
-            if (JsonUtils.getAsString(json, "nope").equals("default")) {
-                blockNames.addAll(Arrays.asList(defaultNames));
-                return;
-            }
-
-            // otherwise, load the blocks in the JSON array
-            JsonUtils.getAsArray(json).getAllStrings().parallelStream()
-                    .map(s -> Registries.BLOCK.get(new Identifier(s)))
-                    .filter(Objects::nonNull).map(BlockUtils::getName).distinct()
-                    .sorted().forEachOrdered(s -> blockNames.add(s));
-
-        } catch (JsonException e) {
-            e.printStackTrace();
-            resetToDefaults();
-        }
-    }
-
-    @Override
-    public JsonElement toJson() {
-        // if blockNames is the same as defaultNames, save string "default"
-        if (blockNames.equals(Arrays.asList(defaultNames)))
-            return new JsonPrimitive("default");
-
-        JsonArray json = new JsonArray();
-        blockNames.forEach(s -> json.add(s));
-        return json;
-    }
-
-    @Override
-    public JsonObject exportWikiData() {
-        JsonObject json = new JsonObject();
-
-        json.addProperty("name", getName());
-        json.addProperty("description", getDescription());
-        json.addProperty("type", "BlockList");
-
-        JsonArray defaultBlocksJson = new JsonArray();
-        for (String blockName : defaultNames)
-            defaultBlocksJson.add(blockName);
-        json.add("defaultBlocks", defaultBlocksJson);
-
-        return json;
-    }
-
-    @Override
-    public Set<PossibleKeybind> getPossibleKeybinds(String featureName) {
-        String fullName = featureName + " " + getName();
-
-        String command = ".blocklist " + featureName.toLowerCase() + " ";
-        command += getName().toLowerCase().replace(" ", "_") + " ";
-
-        LinkedHashSet<PossibleKeybind> pkb = new LinkedHashSet<>();
-        // Can't just list all the blocks here. Would need to change UI to allow
-        // user to choose a block after selecting this option.
-        // pkb.add(new PossibleKeybind(command + "add dirt",
-        // "Add dirt to " + fullName));
-        // pkb.add(new PossibleKeybind(command + "remove dirt",
-        // "Remove dirt from " + fullName));
-        pkb.add(new PossibleKeybind(command + "reset", "Reset " + fullName));
-
-        return pkb;
-    }
+public class BlockListSetting extends Setting
+{
+	private final ArrayList<String> blockNames = new ArrayList<>();
+	private final String[] defaultNames;
+	
+	public BlockListSetting(String name, WText description, String... blocks)
+	{
+		super(name, description);
+		
+		Arrays.stream(blocks).parallel()
+			.map(s -> Registries.BLOCK.get(new Identifier(s)))
+			.filter(Objects::nonNull).map(BlockUtils::getName).distinct()
+			.sorted().forEachOrdered(blockNames::add);
+		defaultNames = blockNames.toArray(new String[0]);
+	}
+	
+	public BlockListSetting(String name, String descriptionKey,
+		String... blocks)
+	{
+		this(name, WText.translated(descriptionKey), blocks);
+	}
+	
+	public List<String> getBlockNames()
+	{
+		return Collections.unmodifiableList(blockNames);
+	}
+	
+	public String getSignature()
+	{
+		return String.join(",", blockNames);
+	}
+	
+	public int indexOf(String name)
+	{
+		return Collections.binarySearch(blockNames, name);
+	}
+	
+	public int indexOf(Block block)
+	{
+		return indexOf(BlockUtils.getName(block));
+	}
+	
+	public boolean contains(String name)
+	{
+		return indexOf(name) >= 0;
+	}
+	
+	public boolean contains(Block block)
+	{
+		return indexOf(block) >= 0;
+	}
+	
+	public int size()
+	{
+		return blockNames.size();
+	}
+	
+	public void add(Block block)
+	{
+		String name = BlockUtils.getName(block);
+		if(Collections.binarySearch(blockNames, name) >= 0)
+			return;
+		
+		blockNames.add(name);
+		Collections.sort(blockNames);
+		WurstClient.INSTANCE.saveSettings();
+	}
+	
+	public void remove(int index)
+	{
+		if(index < 0 || index >= blockNames.size())
+			return;
+		
+		blockNames.remove(index);
+		WurstClient.INSTANCE.saveSettings();
+	}
+	
+	public void resetToDefaults()
+	{
+		blockNames.clear();
+		blockNames.addAll(Arrays.asList(defaultNames));
+		WurstClient.INSTANCE.saveSettings();
+	}
+	
+	public List<Block> getBlocks()
+	{
+		return blockNames.stream().map(BlockUtils::getBlockFromName)
+			.filter(Objects::nonNull).toList();
+	}
+	
+	@Override
+	public Component getComponent()
+	{
+		return new BlockListEditButton(this);
+	}
+	
+	@Override
+	public void fromJson(JsonElement json)
+	{
+		try
+		{
+			blockNames.clear();
+			
+			// if string "default", load default blocks
+			if(JsonUtils.getAsString(json, "nope").equals("default"))
+			{
+				blockNames.addAll(Arrays.asList(defaultNames));
+				return;
+			}
+			
+			// otherwise, load the blocks in the JSON array
+			JsonUtils.getAsArray(json).getAllStrings().parallelStream()
+				.map(s -> Registries.BLOCK.get(new Identifier(s)))
+				.filter(Objects::nonNull).map(BlockUtils::getName).distinct()
+				.sorted().forEachOrdered(s -> blockNames.add(s));
+			
+		}catch(JsonException e)
+		{
+			e.printStackTrace();
+			resetToDefaults();
+		}
+	}
+	
+	@Override
+	public JsonElement toJson()
+	{
+		// if blockNames is the same as defaultNames, save string "default"
+		if(blockNames.equals(Arrays.asList(defaultNames)))
+			return new JsonPrimitive("default");
+		
+		JsonArray json = new JsonArray();
+		blockNames.forEach(s -> json.add(s));
+		return json;
+	}
+	
+	@Override
+	public JsonObject exportWikiData()
+	{
+		JsonObject json = new JsonObject();
+		
+		json.addProperty("name", getName());
+		json.addProperty("description", getDescription());
+		json.addProperty("type", "BlockList");
+		
+		JsonArray defaultBlocksJson = new JsonArray();
+		for(String blockName : defaultNames)
+			defaultBlocksJson.add(blockName);
+		json.add("defaultBlocks", defaultBlocksJson);
+		
+		return json;
+	}
+	
+	@Override
+	public Set<PossibleKeybind> getPossibleKeybinds(String featureName)
+	{
+		String fullName = featureName + " " + getName();
+		
+		String command = ".blocklist " + featureName.toLowerCase() + " ";
+		command += getName().toLowerCase().replace(" ", "_") + " ";
+		
+		LinkedHashSet<PossibleKeybind> pkb = new LinkedHashSet<>();
+		// Can't just list all the blocks here. Would need to change UI to allow
+		// user to choose a block after selecting this option.
+		// pkb.add(new PossibleKeybind(command + "add dirt",
+		// "Add dirt to " + fullName));
+		// pkb.add(new PossibleKeybind(command + "remove dirt",
+		// "Remove dirt from " + fullName));
+		pkb.add(new PossibleKeybind(command + "reset", "Reset " + fullName));
+		
+		return pkb;
+	}
 }
