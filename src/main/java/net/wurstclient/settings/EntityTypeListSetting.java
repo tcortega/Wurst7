@@ -124,15 +124,20 @@ public class EntityTypeListSetting extends Setting
 	{
 		try
 		{
+			entityTypes.clear();
 			entityTypeNames.clear();
 			
 			if(JsonUtils.getAsString(json, "nope").equals("default"))
 			{
 				entityTypeNames.addAll(Arrays.asList(defaultTypes));
+				entityTypes.addAll(Arrays.stream(defaultTypes)
+					.map(s -> Registries.ENTITY_TYPE.get(new Identifier(s)))
+					.filter(Objects::nonNull).toList());
 				return;
 			}
 			
-			JsonUtils.getAsArray(json).getAllStrings().parallelStream()
+			List<String> names = JsonUtils.getAsArray(json).getAllStrings();
+			names.parallelStream()
 				.map(s -> Registries.ENTITY_TYPE.get(new Identifier(s)))
 				.filter(Objects::nonNull).map(EntityUtils::getName).distinct()
 				.sorted().forEachOrdered(name -> {
