@@ -50,11 +50,9 @@ jobs:
     - name: Execute Gradle build
       run: ./gradlew spotlessCheck build --stacktrace --warning-mode=fail
 
-    - name: VirusTotal scan
-      if: ${{ github.event_name == 'push' }}
-      uses: crazy-max/ghaction-virustotal@v4
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
-        files: |
-          ./build/libs/*.jar
-      continue-on-error: true
+        name: mod-artifacts
+        path: build/libs/*.jar
+        retention-days: 30
