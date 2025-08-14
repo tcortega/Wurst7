@@ -8,9 +8,11 @@
 package net.wurstclient.hacks;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.lwjgl.opengl.GL11;
@@ -119,6 +121,18 @@ public class ChestEspHack extends Hack implements UpdateListener,
 	private final List<ChestEspEntityGroup> entityGroups =
 		Arrays.asList(chestCarts, chestBoats, hopperCarts);
 	
+	private static Class<?> IHasOpenersClass;
+	private static MethodHandle getOpenersHandle;
+	private static boolean lootrReflectionAttempted = false;
+	private static boolean lootrPresent = false;
+	
+	private final Map<Object, Boolean> openedContainerCache =
+		new ConcurrentHashMap<>();
+	private long lastCacheClear = System.currentTimeMillis();
+	private static final long CACHE_CLEAR_INTERVAL = 5000;
+	
+	private UUID playerUuid;
+	
 	public ChestEspHack()
 	{
 		super("ChestESP");
@@ -129,12 +143,52 @@ public class ChestEspHack extends Hack implements UpdateListener,
 			.forEach(this::addSetting);
 	}
 	
+	private void initializeLootrReflection()
+	{
+		if(lootrReflectionAttempted)
+		{
+			return;
+		}
+		
+		try
+		{
+			IHasOpenersClass =
+				Class.forName("net.zestyblaze.lootr.api.IHasOpeners");
+			
+			MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+			MethodType methodType = MethodType.methodType(Set.class);
+			getOpenersHandle =
+				lookup.findVirtual(IHasOpenersClass, "getOpeners", methodType);
+			
+			lootrPresent = true;
+			System.out.println(
+				"Wurst Client: Lootr compatibility enabled (using MethodHandles).");
+			
+		}catch(Exception e)
+		{
+			IHasOpenersClass = null;
+			getOpenersHandle = null;
+			lootrPresent = false;
+			System.out.println(
+				"Wurst Client: Lootr not found, compatibility disabled.");
+		}
+		
+		lootrReflectionAttempted = true;
+	}
+	
 	@Override
 	protected void onEnable()
 	{
 		EVENTS.add(UpdateListener.class, this);
 		EVENTS.add(CameraTransformViewBobbingListener.class, this);
 		EVENTS.add(RenderListener.class, this);
+		
+		initializeLootrReflection();
+		
+		if(MC.player != null)
+		{
+			playerUuid = MC.player.getUuid();
+		}
 		
 		ChestEspRenderer.prepareBuffers();
 	}
@@ -147,7 +201,59 @@ public class ChestEspHack extends Hack implements UpdateListener,
 		EVENTS.remove(RenderListener.class, this);
 		
 		groups.forEach(ChestEspGroup::clear);
+		openedContainerCache.clear();
 		ChestEspRenderer.closeBuffers();
+	}
+	
+	private boolean isLootrContainerOpened(Object container)
+	{
+		if(!lootrPresent)
+		{
+			return false;
+		}
+		
+		Boolean cached = openedContainerCache.get(container);
+		if(cached != null)
+		{
+			return cached;
+		}
+		
+		if(container == null || !IHasOpenersClass.isInstance(container))
+		{
+			openedContainerCache.put(container, false);
+			return false;
+		}
+		
+		try
+		{
+			@SuppressWarnings("unchecked")
+			Set<UUID> openers = (Set<UUID>)getOpenersHandle.invoke(container);
+			
+			boolean isOpened = openers != null && playerUuid != null
+				&& openers.contains(playerUuid);
+			
+			openedContainerCache.put(container, isOpened);
+			return isOpened;
+			
+		}catch(Throwable e)
+		{
+			System.err.println(
+				"Wurst Client: Error invoking Lootr method. Disabling compatibility.");
+			getOpenersHandle = null;
+			lootrPresent = false;
+			openedContainerCache.put(container, false);
+			return false;
+		}
+	}
+	
+	private void clearCacheIfNeeded()
+	{
+		long currentTime = System.currentTimeMillis();
+		if(currentTime - lastCacheClear > CACHE_CLEAR_INTERVAL)
+		{
+			openedContainerCache.clear();
+			lastCacheClear = currentTime;
+		}
 	}
 	
 	@Override
@@ -155,37 +261,94 @@ public class ChestEspHack extends Hack implements UpdateListener,
 	{
 		groups.forEach(ChestEspGroup::clear);
 		
+		clearCacheIfNeeded();
+		
+		if(MC.player != null && playerUuid == null)
+		{
+			playerUuid = MC.player.getUuid();
+		}
+		
 		ArrayList<BlockEntity> blockEntities =
 			ChunkUtils.getLoadedBlockEntities()
 				.collect(Collectors.toCollection(ArrayList::new));
 		
+		if(lootrPresent)
+		{
+			List<BlockEntity> nonLootrEntities = new ArrayList<>();
+			for(BlockEntity blockEntity : blockEntities)
+			{
+				if(!isLootrContainerOpened(blockEntity))
+				{
+					nonLootrEntities.add(blockEntity);
+				}
+			}
+			processBlockEntities(nonLootrEntities);
+		}else
+		{
+			processBlockEntities(blockEntities);
+		}
+		
+		processEntities();
+	}
+	
+	private void processBlockEntities(List<BlockEntity> blockEntities)
+	{
 		for(BlockEntity blockEntity : blockEntities)
-			if(blockEntity instanceof TrappedChestBlockEntity)
-				trapChests.add(blockEntity);
-			else if(blockEntity instanceof ChestBlockEntity)
-				basicChests.add(blockEntity);
-			else if(blockEntity instanceof EnderChestBlockEntity)
-				enderChests.add(blockEntity);
-			else if(blockEntity instanceof ShulkerBoxBlockEntity)
-				shulkerBoxes.add(blockEntity);
-			else if(blockEntity instanceof BarrelBlockEntity)
+		{
+			if(blockEntity instanceof ChestBlockEntity)
+			{
+				if(blockEntity instanceof TrappedChestBlockEntity)
+				{
+					trapChests.add(blockEntity);
+				}else
+				{
+					basicChests.add(blockEntity);
+				}
+			}else if(blockEntity instanceof BarrelBlockEntity)
+			{
 				barrels.add(blockEntity);
-			else if(blockEntity instanceof HopperBlockEntity)
-				hoppers.add(blockEntity);
-			else if(blockEntity instanceof DropperBlockEntity)
-				droppers.add(blockEntity);
-			else if(blockEntity instanceof DispenserBlockEntity)
-				dispensers.add(blockEntity);
-			else if(blockEntity instanceof AbstractFurnaceBlockEntity)
+			}else if(blockEntity instanceof ShulkerBoxBlockEntity)
+			{
+				shulkerBoxes.add(blockEntity);
+			}else if(blockEntity instanceof EnderChestBlockEntity)
+			{
+				enderChests.add(blockEntity);
+			}else if(blockEntity instanceof AbstractFurnaceBlockEntity)
+			{
 				furnaces.add(blockEntity);
-			
+			}else if(blockEntity instanceof HopperBlockEntity)
+			{
+				hoppers.add(blockEntity);
+			}else if(blockEntity instanceof DispenserBlockEntity)
+			{
+				dispensers.add(blockEntity);
+			}else if(blockEntity instanceof DropperBlockEntity)
+			{
+				droppers.add(blockEntity);
+			}
+		}
+	}
+	
+	private void processEntities()
+	{
 		for(Entity entity : MC.world.getEntities())
+		{
+			if(lootrPresent && isLootrContainerOpened(entity))
+			{
+				continue;
+			}
+			
 			if(entity instanceof ChestMinecartEntity)
+			{
 				chestCarts.add(entity);
-			else if(entity instanceof HopperMinecartEntity)
-				hopperCarts.add(entity);
-			else if(entity instanceof ChestBoatEntity)
+			}else if(entity instanceof ChestBoatEntity)
+			{
 				chestBoats.add(entity);
+			}else if(entity instanceof HopperMinecartEntity)
+			{
+				hopperCarts.add(entity);
+			}
+		}
 	}
 	
 	@Override
